@@ -2,6 +2,7 @@
 set -eu
 
 SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export REPO_MAINTENANCE_COMMON_DIR="$SELF_DIR/../lib"
 . "$SELF_DIR/../lib/common.sh"
 
 if [ "${REPO_MAINTENANCE_SKIP_GH_RELEASE:-false}" = "true" ]; then
@@ -26,3 +27,4 @@ fi
 
 gh release create "$RELEASE_TAG" --verify-tag --generate-notes
 log "Created GitHub release $RELEASE_TAG."
+wait_for_github_release "$RELEASE_TAG"
