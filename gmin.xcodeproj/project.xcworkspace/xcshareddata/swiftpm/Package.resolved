@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/gaelic-ghost/SwiftASB",
       "state" : {
-        "branch" : "main",
-        "revision" : "84402ef8980ac3b652a6c27b4f160efaefef2f77"
+        "revision" : "a12781468544cd914dd4154ceb0e87104c859c0f",
+        "version" : "1.0.2"
       }
     }
   ],
