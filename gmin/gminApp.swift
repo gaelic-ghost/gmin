@@ -14,7 +14,7 @@ struct gminApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+			MainWindowView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
 		Settings {

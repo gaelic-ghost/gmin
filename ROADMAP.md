@@ -27,6 +27,7 @@
 
 - [ ] Add first-class TTS built around `SpeakSwiftlyServer`.
 - [ ] Add richer local/runtime status badges and inspector surfaces.
+- [ ] Explore trackpad gestures for high-value navigation and inspection flows, including rotation and next/previous page gestures.
 - [ ] Explore supporting services and workflows that don't belong directly in the thread pane.
 - [ ] Build the later iOS remote-control companion app.
 - [ ] Revisit release automation once the app can ship something more than the shell.
