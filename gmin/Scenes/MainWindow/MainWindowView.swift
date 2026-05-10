@@ -14,52 +14,75 @@
 import SwiftUI
 
 struct MainWindowView: View {
-    @State private var model = MainWindowModel()
+    @State private var codexModel = GminCodexModel()
+    @State private var windowState = MainWindowState()
+
+    var autoStart = true
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $model.columnVisibility) {
-            ThreadSidebarView(model: model)
+        NavigationSplitView(columnVisibility: $windowState.columnVisibility) {
+            ThreadSidebarView(model: codexModel)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
         } content: {
-            ThreadContentView(thread: model.selectedThread)
+            ThreadContentView(model: codexModel)
                 .navigationSplitViewColumnWidth(min: 420, ideal: 720, max: .infinity)
         } detail: {
-            InspectorBadgeStripView(badges: model.selectedThreadBadges)
+            InspectorBadgeStripView(badges: codexModel.selectedThreadBadges)
                 .navigationSplitViewColumnWidth(min: 52, ideal: 60, max: 72)
         }
         .navigationSplitViewStyle(.balanced)
+        .task {
+            guard autoStart else { return }
+
+            await codexModel.startIfNeeded()
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button {
-                    model.createThread()
+                    Task { await codexModel.createThread() }
                 } label: {
                     Label("New Thread", systemImage: "plus.bubble")
                 }
-                .help("Create a new local thread shell")
+                .help("Create a stored Codex thread")
+                .disabled(!codexModel.isStarted)
 
                 Button {
-                    model.presentArchive()
+                    windowState.isArchivePresented = true
                 } label: {
                     Label("Archive", systemImage: "archivebox")
                 }
                 .help("Open archived threads")
+                .disabled(codexModel.library == nil)
 
                 Button {
-                    model.archiveSelectedThread()
+                    Task { await codexModel.archiveSelectedThread() }
                 } label: {
                     Label("Archive Selected Thread", systemImage: "tray.and.arrow.down")
                 }
                 .help("Archive the selected thread")
-                .disabled(model.selectedThread == nil)
+                .disabled(codexModel.selectedThread == nil)
+
+                Button {
+                    Task { await codexModel.refreshLibrary() }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .help("Refresh stored threads and selected Git status")
+                .disabled(codexModel.library == nil)
             }
         }
-        .sheet(isPresented: $model.isArchivePresented) {
-            ArchiveSheetView(model: model)
+        .sheet(isPresented: $windowState.isArchivePresented) {
+            ArchiveSheetView(model: codexModel)
                 .frame(minWidth: 520, minHeight: 360)
         }
     }
 }
 
+private struct MainWindowState {
+    var columnVisibility: NavigationSplitViewVisibility = .all
+    var isArchivePresented = false
+}
+
 #Preview {
-    MainWindowView()
+    MainWindowView(autoStart: false)
 }

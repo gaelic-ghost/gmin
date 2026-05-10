@@ -6,61 +6,83 @@
 //
 
 /*
- The Sidebare Pane is the leading column of the NavigationSplitView
+ The Sidebar Pane is the leading column of the NavigationSplitView
  */
 
+import SwiftASB
 import SwiftUI
 
 struct ThreadSidebarView: View {
-    @Bindable var model: MainWindowModel
+    @Bindable var model: GminCodexModel
 
     var body: some View {
-        List(selection: $model.selectedThreadID) {
-            if !model.pinnedThreads.isEmpty {
-                Section("Pinned") {
-                    ForEach(model.pinnedThreads) { thread in
-                        ThreadSidebarRow(thread: thread)
+        List(selection: selectedThreadID) {
+            if let library = model.library {
+                if library.isLoadingLocalSnapshot || library.isReconciling {
+                    Section {
+                        Label("Refreshing stored threads", systemImage: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(.secondary)
                     }
                 }
-            }
 
-            Section("Threads") {
-                if model.recentThreads.isEmpty {
-                    ContentUnavailableView(
-                        "No Threads",
-                        systemImage: "text.bubble",
-                        description: Text("Create a thread to start shaping the SwiftASB-backed workflow."),
-                    )
-                } else {
-                    ForEach(model.recentThreads) { thread in
-                        ThreadSidebarRow(thread: thread)
+                ForEach(library.groups) { group in
+                    Section(group.title) {
+                        ForEach(group.threads) { thread in
+                            ThreadSidebarRow(thread: thread)
+                        }
                     }
+                }
+
+                if library.unarchivedThreads.isEmpty {
+                    Section {
+                        ContentUnavailableView(
+                            "No Stored Threads",
+                            systemImage: "text.bubble",
+                            description: Text("Create a thread to start a stored SwiftASB-backed workflow."),
+                        )
+                    }
+                }
+            } else {
+                Section {
+                    ContentUnavailableView(
+                        model.isStarting ? "Starting Codex" : "Codex Not Ready",
+                        systemImage: model.isStarting ? "bolt.horizontal" : "exclamationmark.triangle",
+                        description: Text(model.startupErrorMessage ?? "SwiftASB is preparing the local app-server library."),
+                    )
                 }
             }
         }
         .navigationTitle("gmin")
     }
+
+    private var selectedThreadID: Binding<String?> {
+        Binding {
+            model.library?.selectedThreadID
+        } set: { threadID in
+            model.library?.selectThread(threadID)
+        }
+    }
 }
 
 private struct ThreadSidebarRow: View {
-    var thread: CodexThreadDraft
+    var thread: CodexAppServer.Library.ThreadSnapshot
 
     var body: some View {
         Label {
             VStack(alignment: .leading, spacing: 3) {
-                Text(thread.title)
+                Text(thread.displayTitle)
                     .lineLimit(1)
 
-                Text(thread.workspaceName)
+                Text(thread.projectInfo.displayName)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
         } icon: {
             Image(systemName: thread.status.systemImage)
-                .foregroundStyle(thread.status == .running ? .cyan : .secondary)
+                .foregroundStyle(thread.status.type == .active ? .cyan : .secondary)
         }
         .tag(thread.id)
-        .help("\(thread.title) in \(thread.workspaceName)")
+        .help("\(thread.displayTitle) in \(thread.projectInfo.displayName)")
     }
 }

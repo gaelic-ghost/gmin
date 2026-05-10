@@ -6,9 +6,10 @@
 //
 
 import SwiftUI
+import SwiftASB
 
 struct ArchiveSheetView: View {
-    @Bindable var model: MainWindowModel
+    @Bindable var model: GminCodexModel
 
     @Environment(\.dismiss) private var dismiss
 
@@ -26,21 +27,14 @@ struct ArchiveSheetView: View {
                 .keyboardShortcut(.defaultAction)
             }
 
-            if model.archivedThreads.isEmpty {
-                ContentUnavailableView(
-                    "No Archived Threads",
-                    systemImage: "archivebox",
-                    description: Text("Archived threads will appear here and can be restored to the sidebar."),
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(model.archivedThreads) { thread in
+            if let archivedThreads = model.library?.archivedThreads, !archivedThreads.isEmpty {
+                List(archivedThreads) { thread in
                     HStack(alignment: .firstTextBaseline, spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(thread.title)
+                            Text(thread.displayTitle)
                                 .font(.headline)
 
-                            Text(thread.summary)
+                            Text(thread.preview.isEmpty ? thread.projectInfo.displayName : thread.preview)
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
@@ -49,8 +43,10 @@ struct ArchiveSheetView: View {
                         Spacer()
 
                         Button {
-                            model.unarchiveThread(id: thread.id)
-                            dismiss()
+                            Task {
+                                await model.unarchiveThread(id: thread.id)
+                                dismiss()
+                            }
                         } label: {
                             Label("Unarchive", systemImage: "tray.and.arrow.up")
                         }
@@ -58,6 +54,13 @@ struct ArchiveSheetView: View {
                     .padding(.vertical, 6)
                 }
                 .listStyle(.inset)
+            } else {
+                ContentUnavailableView(
+                    "No Archived Threads",
+                    systemImage: "archivebox",
+                    description: Text("Archived threads will appear here and can be restored to the sidebar."),
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .padding(20)

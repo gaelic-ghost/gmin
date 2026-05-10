@@ -12,7 +12,7 @@
 import SwiftUI
 
 struct InspectorBadgeStripView: View {
-    var badges: [InspectorBadgeDraft]
+    var badges: [InspectorBadge]
 
     var body: some View {
         VStack(spacing: 10) {
@@ -30,7 +30,7 @@ struct InspectorBadgeStripView: View {
 }
 
 private struct InspectorBadgeButton: View {
-    var badge: InspectorBadgeDraft
+    var badge: InspectorBadge
 
     @State private var isPopoverPresented = false
 
