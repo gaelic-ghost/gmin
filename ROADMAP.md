@@ -13,11 +13,13 @@
 
 ## Next
 
-- [ ] Replace the bootstrap placeholder layout with the real three-pane `NavigationSplitView` structure.
-- [ ] Build the sidebar around project and thread navigation.
-- [ ] Turn the center content column into the active thread view.
-- [ ] Shape the detail inspector into a slim badge-strip for compact metadata.
-- [ ] Define the first real SwiftASB-backed app and model workflow.
+- [x] Replace the bootstrap placeholder layout with the real three-pane `NavigationSplitView` structure.
+- [x] Build the sidebar around project and thread navigation.
+- [x] Turn the center content column into the active thread view.
+- [x] Shape the detail inspector into a slim badge-strip for compact metadata.
+- [ ] Align the first live SwiftASB workflow with `v1.3.1` one-call startup and typed startup errors.
+- [ ] Replace sample thread state with `CodexAppServer.Library`.
+- [ ] Remove or narrow `MainWindowModel.swift` so it owns only SwiftUI presentation state, not duplicated SwiftASB data.
 - [ ] Move toolbar actions toward thread- and workspace-level controls.
 - [ ] Introduce real persisted model types once the first client surface is defined.
 - [ ] Add meaningful unit tests around the first non-template behavior.

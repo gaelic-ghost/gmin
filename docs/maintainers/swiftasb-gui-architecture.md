@@ -14,6 +14,8 @@ This note records the decisions already made so the first implementation slices 
 ## SwiftASB Ownership
 
 - App-wide model owns `CodexAppServer`.
+- Normal startup should use `CodexAppServer.start(_:)` so SwiftASB owns Codex CLI discovery, reviewed-version validation, app-server startup, and initialization in one call.
+- Startup UI should preserve `CodexAppServerStartupError` cases when presenting missing CLI, incompatible CLI, unknown CLI version, launch, or initialization failures.
 - A workspace or selected conversation model owns each `CodexThread`.
 - The active thread owns at most one active `CodexTurnHandle` at a time.
 - Active-turn UI reads `CodexTurnHandle.minimap`.
@@ -98,3 +100,19 @@ Replace the bootstrap placeholder with a modular three-column SwiftUI shell:
 - Selective toolbar buttons for first expected actions.
 
 This slice intentionally does not start the live Codex app-server. The next slice should introduce the real app-wide SwiftASB model and wire one selected thread workflow through SwiftASB handles.
+
+## SwiftASB v1.3.1 Alignment Slice
+
+The next implementation slice should replace the local sample-thread shell with SwiftASB's app-server-owned library state.
+
+- Start the local runtime through `CodexAppServer.start(_:)` with `gmin` client metadata.
+- Treat `StartupSession.cliExecutableDiagnostics` as displayable startup evidence, not as a separate preflight step.
+- Map `CodexAppServerStartupError` into specific runtime messages before enabling live thread controls.
+- Create `CodexAppServer.Library` after startup and use it for stored-thread lists, archive state, library-local selection, worktree groups, selected worktree, selected Git status, model capabilities, MCP status, and hook diagnostics.
+- Bind the sidebar to library thread snapshots instead of `CodexThreadDraft` sample records.
+- Bind the content pane to the selected library thread first, then attach a real `CodexThread` when the selected workflow needs transcript, dashboard, turn, or history APIs.
+- Bind the inspector badge strip to SwiftASB runtime, selected Git, model, MCP, hook, and diagnostic state instead of `InspectorBadgeDraft`.
+- Keep SwiftUI-only presentation state local to the main window: column visibility, sheet presentation, and transient toolbar affordances.
+- Remove `MainWindowModel.swift` in its current mixed role. If a separate type remains useful, replace it with a narrow `MainWindowState` that owns only view presentation state and does not duplicate SwiftASB library, thread, or diagnostic data.
+
+This is a durable building-block change for the app: SwiftASB becomes the source of truth for Codex state, while `gmin` owns the native window layout, user-facing actions, local persistence choices, and readable presentation of SwiftASB state.
