@@ -2,16 +2,16 @@
 
 `gmin` is a native macOS Codex GUI app in active development. The longer-term goal is a first-class desktop client for navigating projects and threads, reading and driving the currently selected conversation, surfacing rich inspector metadata, and eventually coordinating with related devices and services like text-to-speech and an iOS remote companion.
 
-The project currently provides a validated SwiftUI/Xcode baseline with local persistence, a settings scene, test targets, maintainer tooling, and a new dependency on `SwiftASB` as an in-development foundation package.
+The project currently provides a validated SwiftUI/Xcode baseline with local persistence, a settings scene, test targets, maintainer tooling, and a first live `SwiftASB`-backed thread surface.
 
 ## Product Direction
 
 The planned primary interface is a three-pane `NavigationSplitView`:
 
-- The sidebar will handle project and thread navigation.
-- The content column will display the currently selected thread.
-- The detail inspector will be a slim badge-strip that surfaces compact status and metadata.
-- The window toolbar will host thread- and workspace-level actions instead of burying them in ad hoc controls.
+- The sidebar handles stored thread navigation through `CodexAppServer.Library`.
+- The content column resumes the selected stored thread, displays recent turn history, and starts one active turn at a time.
+- The detail inspector is a slim badge-strip that surfaces compact runtime, thread, Git, model, MCP, and hook status.
+- The window toolbar hosts thread- and workspace-level actions instead of burying them in ad hoc controls.
 
 That shape maps cleanly to SwiftUI's documented split-view model, where leading-column selections drive subsequent columns and the container supports two- or three-column navigation at the scene root.
 
@@ -19,9 +19,9 @@ That shape maps cleanly to SwiftUI's documented split-view model, where leading-
 
 - Native macOS SwiftUI app project managed through Xcode.
 - `App`-based entrypoint with a main `WindowGroup` and a dedicated Settings scene.
-- `NavigationSplitView` starter shell in place for evolving the three-pane layout.
+- `NavigationSplitView` shell backed by SwiftASB app-server startup, stored-thread library state, selected-thread handles, and recent-turn companions.
 - Core Data scaffold retained for early local persistence experiments.
-- `SwiftASB` added as a Swift package dependency.
+- `SwiftASB` added as a Swift package dependency and used for runtime startup, Codex CLI diagnostics, thread library state, selected-thread resume, recent turns, and active-turn handles.
 - Swift Testing unit-test target plus XCTest-based UI test targets.
 - Repo guidance and maintainer scripts installed for validation and releases.
 
@@ -42,13 +42,13 @@ That shape maps cleanly to SwiftUI's documented split-view model, where leading-
 
 ## Planned Capabilities
 
-- SwiftASB-backed app and model infrastructure for the Codex GUI.
+- Richer SwiftASB-backed active-turn controls for approvals, elicitation, steering, and inspector drill-downs.
 - First-class TTS driven by `SpeakSwiftlyServer`.
 - Rich thread/project navigation and inspector metadata surfaces.
 - A later iOS remote-control app that can coordinate with the macOS client.
 
 ## Notes
 
-- The current UI is still a bootstrap shell. The repo direction is clearer than the implementation coverage.
-- `SwiftASB` is now added as a package dependency, but the app does not yet expose meaningful SwiftASB-backed workflows in the UI.
+- The current UI is still early, but it now exercises real SwiftASB startup, library, selected-thread, recent-history, and turn-start workflows.
+- Approval, elicitation, steering, and deeper inspector workflows are still planned follow-up surfaces.
 - See [`ROADMAP.md`](ROADMAP.md) for the next planned steps.

@@ -88,29 +88,31 @@ SwiftASB remains the source for app-server thread handles, active turn handles, 
 
 Do not persist raw generated wire payloads as the app's public model. If persistence needs protocol-derived fields, map them into app-owned records with names that match user-visible behavior.
 
-## First Implementation Slice
+## Implemented SwiftASB Slices
 
-Replace the bootstrap placeholder with a modular three-column SwiftUI shell:
+The bootstrap placeholder has been replaced with a modular three-column SwiftUI shell:
 
-- Main window model with sample thread records.
-- Sidebar sections for pinned and recent normal threads.
-- Archive sheet with unarchive behavior.
-- Active thread content pane.
-- Thin inspector badge strip with compact badge buttons and popovers.
-- Selective toolbar buttons for first expected actions.
+- Sidebar sections backed by `CodexAppServer.Library` groups.
+- Archive sheet with SwiftASB-backed unarchive behavior.
+- Active thread content pane backed by the selected `CodexThread`.
+- Thin inspector badge strip with compact runtime, thread, Git, model, MCP, and hook badges.
+- Selective toolbar buttons for thread and workspace actions.
+- Composer for starting one active turn at a time.
+- Recent-turn surface backed by `CodexThread.makeRecentTurns(limit:cachePolicy:)`.
+- Active-turn surface backed by `CodexTurnHandle.minimap`.
 
-This slice intentionally does not start the live Codex app-server. The next slice should introduce the real app-wide SwiftASB model and wire one selected thread workflow through SwiftASB handles.
+The app now starts the live Codex app-server through SwiftASB and uses SwiftASB handles instead of local sample-thread state.
 
-## SwiftASB v1.3.1 Alignment Slice
+## SwiftASB v1.3.1 Alignment
 
-The next implementation slice should replace the local sample-thread shell with SwiftASB's app-server-owned library state.
+The local sample-thread shell has been replaced with SwiftASB's app-server-owned library state.
 
 - Start the local runtime through `CodexAppServer.start(_:)` with `gmin` client metadata.
 - Treat `StartupSession.cliExecutableDiagnostics` as displayable startup evidence, not as a separate preflight step.
 - Map `CodexAppServerStartupError` into specific runtime messages before enabling live thread controls.
 - Create `CodexAppServer.Library` after startup and use it for stored-thread lists, archive state, library-local selection, worktree groups, selected worktree, selected Git status, model capabilities, MCP status, and hook diagnostics.
 - Bind the sidebar to library thread snapshots instead of `CodexThreadDraft` sample records.
-- Bind the content pane to the selected library thread first, then attach a real `CodexThread` when the selected workflow needs transcript, dashboard, turn, or history APIs.
+- Bind the content pane to the selected library thread first, then attach a real `CodexThread` for dashboard, turn, and recent-history APIs.
 - Bind the inspector badge strip to SwiftASB runtime, selected Git, model, MCP, hook, and diagnostic state instead of `InspectorBadgeDraft`.
 - Keep SwiftUI-only presentation state local to the main window: column visibility, sheet presentation, and transient toolbar affordances.
 - Remove `MainWindowModel.swift` in its current mixed role. If a separate type remains useful, replace it with a narrow `MainWindowState` that owns only view presentation state and does not duplicate SwiftASB library, thread, or diagnostic data.

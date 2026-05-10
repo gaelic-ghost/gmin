@@ -15,15 +15,38 @@ import SwiftUI
 final class GminCodexModel {
     private let appServer = CodexAppServer()
 
+    @ObservationIgnored
+    private var turnCompletionTask: Task<Void, Never>?
+
     private(set) var library: CodexAppServer.Library?
     private(set) var startupSession: CodexAppServer.StartupSession?
     private(set) var startupErrorMessage: String?
     private(set) var actionErrorMessage: String?
+    private(set) var selectedCodexThread: CodexThread?
+    private(set) var selectedThreadDashboard: CodexThread.Dashboard?
+    private(set) var selectedThreadRecentTurns: CodexThread.RecentTurns?
+    private(set) var selectedThreadErrorMessage: String?
+    private(set) var activeTurn: CodexTurnHandle?
+    private(set) var completedTurnStatusMessage: String?
     private(set) var isStarting = false
     private(set) var isStarted = false
+    private(set) var isLoadingSelectedThread = false
+    private(set) var isSubmittingTurn = false
 
     var selectedThread: CodexAppServer.Library.ThreadSnapshot? {
         library?.selectedThread
+    }
+
+    var activeTurnMinimap: CodexTurnHandle.Minimap? {
+        activeTurn?.minimap
+    }
+
+    var canStartTurn: Bool {
+        isStarted
+            && selectedCodexThread != nil
+            && activeTurn == nil
+            && !isLoadingSelectedThread
+            && !isSubmittingTurn
     }
 
     var selectedThreadBadges: [InspectorBadge] {
@@ -35,6 +58,7 @@ final class GminCodexModel {
     }
 
     deinit {
+        turnCompletionTask?.cancel()
         let appServer = appServer
         Task { await appServer.stop() }
     }
@@ -95,9 +119,74 @@ final class GminCodexModel {
             )
             await library?.refreshAll()
             library?.selectThread(thread.id)
+            await attach(thread)
             actionErrorMessage = nil
         } catch {
             actionErrorMessage = "SwiftASB could not create a stored Codex thread: \(error.localizedDescription)"
+        }
+    }
+
+    func selectThread(_ threadID: String?) {
+        guard library?.selectedThreadID != threadID else { return }
+
+        library?.selectThread(threadID)
+        clearSelectedThreadHandle()
+    }
+
+    func attachSelectedThreadIfNeeded() async {
+        guard isStarted else { return }
+        guard let selectedThread else {
+            clearSelectedThreadHandle()
+            return
+        }
+        guard selectedCodexThread?.id != selectedThread.id else { return }
+
+        await resumeSelectedThread(selectedThread)
+    }
+
+    func submitTextTurn(_ text: String) async -> Bool {
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else { return false }
+
+        if selectedCodexThread == nil {
+            await attachSelectedThreadIfNeeded()
+        }
+
+        guard let thread = selectedCodexThread else {
+            actionErrorMessage = "gmin cannot send a turn because no stored Codex thread is attached yet."
+            return false
+        }
+
+        guard activeTurn == nil else {
+            actionErrorMessage = "gmin cannot start another turn in \(selectedThread?.displayTitle ?? "the selected thread") because that thread already has active work."
+            return false
+        }
+
+        isSubmittingTurn = true
+        actionErrorMessage = nil
+        completedTurnStatusMessage = nil
+
+        do {
+            let turn = try await thread.startTextTurn(trimmedText)
+            activeTurn = turn
+            observeCompletion(for: turn)
+            isSubmittingTurn = false
+            return true
+        } catch {
+            isSubmittingTurn = false
+            actionErrorMessage = "SwiftASB could not start a turn in \(selectedThread?.displayTitle ?? "the selected thread"): \(error.localizedDescription)"
+            return false
+        }
+    }
+
+    func interruptActiveTurn() async {
+        guard let activeTurn else { return }
+
+        do {
+            try await activeTurn.interrupt()
+            actionErrorMessage = nil
+        } catch {
+            actionErrorMessage = "SwiftASB could not interrupt the active turn: \(error.localizedDescription)"
         }
     }
 
@@ -127,6 +216,90 @@ final class GminCodexModel {
     func refreshLibrary() async {
         await library?.refreshAll()
         await library?.refreshSelectedGitStatus()
+    }
+
+    private func resumeSelectedThread(_ selectedThread: CodexAppServer.Library.ThreadSnapshot) async {
+        isLoadingSelectedThread = true
+        selectedThreadErrorMessage = nil
+        actionErrorMessage = nil
+        clearSelectedThreadHandle()
+
+        do {
+            let thread = try await appServer.resumeThread(
+                .init(
+                    threadID: selectedThread.id,
+                    currentDirectoryPath: selectedThread.currentDirectoryPath,
+                    serviceName: "gmin"
+                )
+            )
+            await attach(thread)
+        } catch {
+            selectedThreadErrorMessage = "SwiftASB could not resume \(selectedThread.displayTitle): \(error.localizedDescription)"
+        }
+
+        isLoadingSelectedThread = false
+    }
+
+    private func attach(_ thread: CodexThread) async {
+        selectedCodexThread = thread
+        selectedThreadDashboard = await thread.makeDashboard()
+
+        do {
+            selectedThreadRecentTurns = try await thread.makeRecentTurns(
+                limit: 12,
+                cachePolicy: .chatUI(pageSize: 12)
+            )
+            selectedThreadErrorMessage = nil
+        } catch {
+            selectedThreadRecentTurns = nil
+            selectedThreadErrorMessage = "SwiftASB resumed \(selectedThread?.displayTitle ?? "the selected thread"), but could not load recent turn history: \(error.localizedDescription)"
+        }
+    }
+
+    private func clearSelectedThreadHandle() {
+        turnCompletionTask?.cancel()
+        turnCompletionTask = nil
+        selectedCodexThread = nil
+        selectedThreadDashboard = nil
+        selectedThreadRecentTurns = nil
+        selectedThreadErrorMessage = nil
+        activeTurn = nil
+        completedTurnStatusMessage = nil
+    }
+
+    private func observeCompletion(for turn: CodexTurnHandle) {
+        turnCompletionTask?.cancel()
+        turnCompletionTask = Task { [weak self] in
+            do {
+                for try await event in turn.events {
+                    if case .completed = event {
+                        let closedTurn = try await turn.complete()
+                        await self?.finishTurn(turnID: turn.turn.id, status: closedTurn.status)
+                        return
+                    }
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                await self?.recordTurnCompletionError(turnID: turn.turn.id, error: error)
+            }
+        }
+    }
+
+    private func finishTurn(turnID: String, status: String) async {
+        guard activeTurn?.turn.id == turnID else { return }
+
+        activeTurn = nil
+        completedTurnStatusMessage = "Turn \(turnID) finished with status \(status)."
+        await refreshLibrary()
+    }
+
+    private func recordTurnCompletionError(turnID: String, error: Error) async {
+        guard activeTurn?.turn.id == turnID else { return }
+
+        activeTurn = nil
+        actionErrorMessage = "SwiftASB could not finish reading turn \(turnID): \(error.localizedDescription)"
+        await refreshLibrary()
     }
 
     private static func startupMessage(for error: Error) -> String {

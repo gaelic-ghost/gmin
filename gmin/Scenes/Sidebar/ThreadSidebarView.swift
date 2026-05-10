@@ -59,7 +59,7 @@ struct ThreadSidebarView: View {
         Binding {
             model.library?.selectedThreadID
         } set: { threadID in
-            model.library?.selectThread(threadID)
+            model.selectThread(threadID)
         }
     }
 }
